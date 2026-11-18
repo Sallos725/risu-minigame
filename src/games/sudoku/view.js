@@ -159,7 +159,7 @@ export default {
       if (isSolved(game.values)) {
         game.done = true;
         const prevBest = best[game.difficulty];
-        if (!prevBest || game.elapsed < prevBest) best = { ...best, [game.difficulty]: game.elapsed };
+        if (prevBest == null || game.elapsed < prevBest) best = { ...best, [game.difficulty]: game.elapsed };
         stopTimer();
       }
       render();
@@ -180,7 +180,7 @@ export default {
         ${inProgress ? '<p class="sdk-ov-sub">지금 판은 사라져요</p>' : ''}
         <div class="sdk-ov-btns">
           ${Object.entries(DIFFICULTY).map(([k, v]) => `
-            <button class="mg-btn mg-btn-primary" data-pick="${k}">${v.label}${best[k] ? `<small>최고 ${fmtTime(best[k])}</small>` : ''}</button>`).join('')}
+            <button class="mg-btn mg-btn-primary" data-pick="${k}">${v.label}${best[k] != null ? `<small>최고 ${fmtTime(best[k])}</small>` : ''}</button>`).join('')}
           ${canCancel ? '<button class="mg-btn" data-cancel>취소</button>' : ''}
         </div>`;
       overlay.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => start(b.dataset.pick)));
