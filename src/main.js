@@ -2,9 +2,10 @@ import { createHost } from './core/host.js';
 import { createApp } from './shell/app.js';
 import g2048 from './games/g2048/view.js';
 import sudoku from './games/sudoku/view.js';
+import rushhour from './games/rushhour/view.js';
 import { ICON_SVG } from './icon.js';
 
-const GAMES = [g2048, sudoku];
+const GAMES = [g2048, sudoku, rushhour];
 
 // 응답 도착 알림.
 // addRisuScriptHandler('output')는 스트리밍 청크마다 불려서 "완료" 신호로 못 쓴다.

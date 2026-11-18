@@ -1,6 +1,6 @@
 {
   "name": "risu-minigame",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "RisuAI 응답 대기 중에 즐기는 미니게임 플러그인 (API 3.0)",

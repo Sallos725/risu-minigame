@@ -23,17 +23,7 @@ export const PEERS = Array.from({ length: 81 }, (_, i) => {
 const bitCount = (m) => { let n = 0; while (m) { m &= m - 1; n++; } return n; };
 const digitsOf = (m) => { const out = []; for (let d = 1; d <= 9; d++) if (m & (1 << d)) out.push(d); return out; };
 
-// 시드 고정 RNG (테스트·재현용)
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { mulberry32 } from '../../core/rng.js';
 
 function shuffle(arr, rng) {
   for (let i = arr.length - 1; i > 0; i--) {
