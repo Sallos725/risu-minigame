@@ -61,6 +61,8 @@ export default {
     let noteMode = false;
     let undo = [];
     let tick = 0;
+    let pendingStart = 0;
+    let disposed = false;
 
     root.innerHTML = `
       <div class="sdk">
@@ -187,8 +189,12 @@ export default {
 
     function start(difficulty) {
       overlay.innerHTML = '<p class="sdk-ov-title">퍼즐 만드는 중…</p>';
-      // 문구가 먼저 그려지도록 한 프레임 넘긴 뒤 생성한다
-      setTimeout(() => {
+      // 문구가 먼저 그려지도록 한 프레임 넘긴 뒤 생성한다.
+      // 생성 중에 화면을 닫으면 dispose가 먼저 돌기 때문에, 여기서 다시 확인하지 않으면 타이머가 새어 나간다.
+      clearTimeout(pendingStart);
+      pendingStart = setTimeout(() => {
+        pendingStart = 0;
+        if (disposed) return;
         const p = generate(difficulty);
         game = {
           difficulty,
@@ -316,6 +322,8 @@ export default {
 
     return {
       dispose() {
+        disposed = true;
+        clearTimeout(pendingStart);
         stopTimer();
         win.removeEventListener('keydown', onKey);
         persist();
