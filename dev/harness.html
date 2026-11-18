@@ -11,6 +11,13 @@
   #actions button, #tools button { padding: 8px 12px; font-size: 16px; }
   #tools { position: fixed; top: 50%; left: 4px; display: flex; flex-direction: column; gap: 6px; z-index: 2000; opacity: .85; }
   #plugin { display: none; border: 0; }
+  #inputbar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; padding: 8px; background: #fff; border-top: 1px solid #ccd; }
+  #inputbar input { flex: 1; padding: 8px; }
+  #chatmenu { position: relative; }
+  #chatmenu summary { list-style: none; cursor: pointer; padding: 8px 12px; font-size: 18px; }
+  #chatmenu-items { position: absolute; bottom: 44px; left: 0; background: #fff; border: 1px solid #ccd; border-radius: 8px; padding: 4px; min-width: 160px; }
+  #chatmenu-items button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; background: none; font-size: 15px; color: #333; }
+  #chatmenu-items .ico { width: 20px; height: 20px; }
 </style>
 </head>
 <body>
@@ -22,8 +29,9 @@
   사용: 저장소 루트에서 `npm run build && python3 -m http.server 8787` 후
         http://localhost:8787/dev/harness.html
 -->
-<div id="chat"><h3>가짜 채팅 화면</h3><p>오른쪽 위 🎮 버튼으로 미니게임을 열어요.</p></div>
+<div id="chat"><h3>가짜 채팅 화면</h3><p>입력칸 옆 ☰ 메뉴에서 미니게임을 열어요.</p></div>
 <div id="actions"></div>
+<div id="inputbar"><details id="chatmenu"><summary>☰</summary><div id="chatmenu-items"></div></details><input placeholder="메시지 입력"></div>
 <div id="tools">
   <button id="fire">응답 도착 시뮬레이션</button>
   <button id="reset">저장소 비우기</button>
@@ -62,6 +70,8 @@ const Risuai = risuai;
 `;
 
 const frame = document.getElementById('plugin');
+// ?bare 를 붙이면 테스트용 버튼을 숨긴다 (자동 테스트에서 게임 화면을 가리지 않게)
+if (new URLSearchParams(location.search).has('bare')) document.getElementById('tools').style.display = 'none';
 const log = (s) => { document.getElementById('log').textContent = s; console.log('[harness]', s); };
 const chatListeners = [];
 // ?perm=grant|deny 로 가짜 권한 응답을 고정할 수 있다 (없으면 confirm 창으로 묻는다)
@@ -75,11 +85,19 @@ const HOST = {
   'storage.setItem': (k, v) => { localStorage.setItem('h:' + k, JSON.stringify(v)); log('saved ' + k); },
   showContainer: () => { Object.assign(frame.style, { display: 'block', position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1000 }); },
   hideContainer: () => { frame.style.display = 'none'; },
+  // location: 'action' = 오른쪽 위 고정 버튼, 'chat' = 입력칸 옆 ☰ 메뉴 항목 (아이콘 + 이름)
   registerButton: (def, cb) => {
     const b = document.createElement('button');
-    b.innerHTML = def.icon; b.title = def.name; b.id = def.id;
-    b.onclick = () => invoke(cb);
-    document.getElementById('actions').appendChild(b);
+    b.id = def.id; b.title = def.name;
+    b.onclick = () => { document.getElementById('chatmenu').open = false; invoke(cb); };
+    if (def.location === 'chat') {
+      b.innerHTML = `<span class="ico">${def.icon}</span><span></span>`;
+      b.lastChild.textContent = def.name;
+      document.getElementById('chatmenu-items').appendChild(b);
+    } else {
+      b.innerHTML = def.icon;
+      document.getElementById('actions').appendChild(b);
+    }
     return { id: def.id };
   },
   unregisterUIPart: (id) => document.getElementById(id)?.remove(),

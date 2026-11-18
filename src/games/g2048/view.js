@@ -6,7 +6,7 @@ const SAVE_KEY = 'g2048';
 export default {
   id: 'g2048',
   title: '2048',
-  icon: '🔢',
+  icon: '🟨',
   desc: '같은 숫자를 합쳐 2048 만들기',
 
   async mount(root, { host, win, doc }) {

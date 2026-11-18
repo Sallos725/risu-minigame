@@ -21,7 +21,11 @@ PocketRisu 1.17.0(`40851fc`, :6001에서 실행 중인 버전) 소스를 기준�
 ## UI
 - 화면을 띄우는 방법은 `showContainer('fullscreen')` 하나뿐이에요.
   iframe이 화면 전체를 덮기 때문에, 작은 창을 띄우면 채팅 조작이 막혀요 (`plugins/apiV3/v3.svelte.ts:1108-1141`).
-- `registerButton({location:'action'})`은 호스트가 오른쪽 위에 직접 그리는 버튼이라 우리 DOM 비용이 없어요 (`v3.svelte.ts:1213`).
+- 진입점은 `registerButton({location:'chat'})`로 채팅 입력칸 옆 ☰ 메뉴에 넣어요 (`v3.svelte.ts:1213`).
+  메뉴에는 아이콘과 이름이 같이 나와요 (`lib/ChatScreens/DefaultChatScreen.svelte:1087-1090`).
+  - 아이콘은 `PluginDefinedIcon`이 DOMPurify 기본 설정으로 정리한 뒤 20px 박스에 넣어요. 기본 설정은 SVG를 남겨요.
+  - 다른 메뉴 아이콘에 맞춰 `currentColor` 선 아이콘(`src/icon.js`)을 써요.
+  - `'action'`(오른쪽 위 고정 버튼)은 화면에 계속 떠 있어서 쓰지 않기로 했어요.
 - PocketRisu는 알림창이 열리면 전체화면 iframe을 알림 레이어 아래로 내려요 (`v3.svelte.ts:629-634`).
   업스트림은 그렇지 않아서, 권한을 요청하기 전에 `hideContainer()`를 먼저 불러요.
 
