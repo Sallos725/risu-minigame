@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미니게임 하네스</title>
+<style>
+  body { margin: 0; font: 15px system-ui, sans-serif; background: #e9eef3; height: 100vh; }
+  #chat { padding: 16px; }
+  #actions { position: fixed; top: 8px; right: 8px; display: flex; gap: 6px; z-index: 50; }
+  #actions button, #tools button { padding: 8px 12px; font-size: 16px; }
+  #tools { position: fixed; top: 50%; left: 4px; display: flex; flex-direction: column; gap: 6px; z-index: 2000; opacity: .85; }
+  #plugin { display: none; border: 0; }
+</style>
+</head>
+<body>
+<!--
+  PocketRisu 1.17의 V3 플러그인 환경을 흉내 내는 개발용 페이지.
+  - sandbox / CSP / srcdoc 구조는 src/ts/plugins/apiV3/factory.ts 그대로
+  - risuai.* 는 postMessage RPC로 이 페이지가 처리 (모든 호출이 Promise)
+  - 저장소는 이 페이지의 localStorage에 둔다
+  사용: 저장소 루트에서 `npm run build && python3 -m http.server 8787` 후
+        http://localhost:8787/dev/harness.html
+-->
+<div id="chat"><h3>가짜 채팅 화면</h3><p>오른쪽 위 🎮 버튼으로 미니게임을 열어요.</p></div>
+<div id="actions"></div>
+<div id="tools">
+  <button id="fire">응답 도착 시뮬레이션</button>
+  <button id="reset">저장소 비우기</button>
+  <span id="log"></span>
+</div>
+<iframe id="plugin"></iframe>
+<script>
+const CSP = "connect-src 'none'; script-src 'nonce-NONCE' 'wasm-unsafe-eval'; frame-src 'none'; object-src 'none'; style-src * 'unsafe-inline'; default-src 'none'; img-src * data: blob:; font-src * data: blob:; media-src * data: blob:; base-uri 'none';";
+
+// iframe 안에 들어갈 가짜 브리지. 함수 인자는 콜백 id로 바꿔서 보낸다.
+const GUEST = `
+const __cbs = new Map(); const __fnIds = new WeakMap(); let __seq = 0; const __wait = new Map();
+window.addEventListener('message', (e) => {
+  const m = e.data || {};
+  if (m.t === 'res') { const w = __wait.get(m.id); __wait.delete(m.id); m.err ? w.rej(new Error(m.err)) : w.res(m.value); }
+  if (m.t === 'cb') { __cbs.get(m.cb)?.(...(m.args || [])); }
+});
+function __call(method, args) {
+  const id = ++__seq;
+  // 실제 호스트처럼 같은 함수에는 같은 콜백 id를 재사용한다 (factory.ts:62-72)
+  const wire = args.map((a) => {
+    if (typeof a !== 'function') return a;
+    let key = __fnIds.get(a);
+    if (!key) { key = 'cb' + (++__seq); __fnIds.set(a, key); __cbs.set(key, a); }
+    return { __cb: key };
+  });
+  return new Promise((res, rej) => { __wait.set(id, { res, rej }); parent.postMessage({ t: 'call', id, method, args: wire }, '*'); });
+}
+const __storage = {
+  getItem: (k) => __call('storage.getItem', [k]),
+  setItem: (k, v) => __call('storage.setItem', [k, v]),
+};
+const risuai = new Proxy({}, { get: (_, name) => name === 'getLocalPluginStorage'
+  ? async () => __storage : (...args) => __call(String(name), args) });
+const Risuai = risuai;
+`;
+
+const frame = document.getElementById('plugin');
+const log = (s) => { document.getElementById('log').textContent = s; console.log('[harness]', s); };
+const chatListeners = [];
+// ?perm=grant|deny 로 가짜 권한 응답을 고정할 수 있다 (없으면 confirm 창으로 묻는다)
+const permParam = new URLSearchParams(location.search).get('perm');
+let permissionGranted = permParam === 'grant' ? true : permParam === 'deny' ? false : null;
+
+function invoke(cbRef, ...args) { frame.contentWindow.postMessage({ t: 'cb', cb: cbRef.__cb, args }, '*'); }
+
+const HOST = {
+  'storage.getItem': (k) => { const v = localStorage.getItem('h:' + k); return v == null ? null : JSON.parse(v); },
+  'storage.setItem': (k, v) => { localStorage.setItem('h:' + k, JSON.stringify(v)); log('saved ' + k); },
+  showContainer: () => { Object.assign(frame.style, { display: 'block', position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1000 }); },
+  hideContainer: () => { frame.style.display = 'none'; },
+  registerButton: (def, cb) => {
+    const b = document.createElement('button');
+    b.innerHTML = def.icon; b.title = def.name; b.id = def.id;
+    b.onclick = () => invoke(cb);
+    document.getElementById('actions').appendChild(b);
+    return { id: def.id };
+  },
+  unregisterUIPart: (id) => document.getElementById(id)?.remove(),
+  onUnload: () => {},
+  requestPluginPermission: (p) => {
+    if (permissionGranted == null) permissionGranted = confirm(`플러그인이 "${p}" 권한을 요청해요. 허용할까요?`);
+    return permissionGranted;
+  },
+  addRisuChatListener: (mode, cb) => {
+    if (permissionGranted == null) permissionGranted = confirm('replacer 권한 허용?');
+    if (!permissionGranted) return;
+    chatListeners.push(cb); log('chat listener 등록됨');
+  },
+  removeRisuChatListener: (mode, cb) => {
+    const i = chatListeners.findIndex((c) => c.__cb === cb.__cb);
+    if (i !== -1) chatListeners.splice(i, 1);
+    log('chat listener 해제됨');
+  },
+};
+
+window.addEventListener('message', async (e) => {
+  if (e.source !== frame.contentWindow) return;
+  const m = e.data;
+  if (m?.t !== 'call') return;
+  try {
+    const fn = HOST[m.method];
+    if (!fn) throw new Error('API method ' + m.method + ' not found');
+    const value = await fn(...m.args);
+    frame.contentWindow.postMessage({ t: 'res', id: m.id, value: value ?? null }, '*');
+  } catch (err) {
+    frame.contentWindow.postMessage({ t: 'res', id: m.id, err: String(err.message || err) }, '*');
+  }
+});
+
+document.getElementById('fire').onclick = () => {
+  // 실제 호스트는 캐릭터·채팅 스냅샷을 통째로 넘긴다
+  for (const cb of chatListeners) invoke(cb, { char: {}, chat: { message: [] }, characterIndex: 0, chatIndex: 0, messageIndex: 0 });
+  log('응답 도착 이벤트 ' + chatListeners.length + '건 전송');
+};
+document.getElementById('reset').onclick = () => {
+  Object.keys(localStorage).filter((k) => k.startsWith('h:')).forEach((k) => localStorage.removeItem(k));
+  location.reload();
+};
+
+(async () => {
+  const code = await (await fetch('../dist/risu-minigame.js', { cache: 'no-store' })).text();
+  const nonce = Math.random().toString(36).slice(2);
+  frame.sandbox.add('allow-scripts', 'allow-modals', 'allow-downloads');
+  frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="${CSP.replace('NONCE', nonce)}" id="csp-meta"></head>
+<body><style>body { background-color: transparent; }</style>
+<script nonce="${nonce}">document.querySelector('meta#csp-meta')?.remove();
+(async () => { ${GUEST}
+(async () => { ${code} })() })();
+<\/script></body></html>`;
+})();
+</script>
+</body>
+</html>
