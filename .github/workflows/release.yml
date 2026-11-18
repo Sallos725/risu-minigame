@@ -45,3 +45,18 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             $PRERELEASE
+
+      # 플러그인 헤더의 //@update-url이 가리키는 곳. 정식 버전만 올려서 pre-release는 자동 업데이트에 안 잡히게 한다.
+      - name: release 브랜치에 플러그인 파일 갱신
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir publish && cp dist/risu-minigame.js publish/
+          cd publish
+          git init -q -b release
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add risu-minigame.js
+          git commit -q -m "release ${GITHUB_REF_NAME}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" release

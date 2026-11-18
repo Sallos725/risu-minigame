@@ -2,7 +2,6 @@
 
 PocketRisu 1.17.0(`40851fc`, :6001에서 실행 중인 버전) 소스를 기준으로 확인한 내용이에요.
 업스트림 RisuAI(`4d87a70`)와 다른 부분은 따로 표시했어요.
-소스 스냅샷 위치: `~/nvme/docker-data/risuhina/space/hina/.sources/{pocketrisu,risuai}`
 
 경로는 모두 `src/ts/` 기준이에요.
 
@@ -46,6 +45,15 @@ PocketRisu 1.17.0(`40851fc`, :6001에서 실행 중인 버전) 소스를 기준�
 - 저장소는 다른 플러그인과 같은 공간을 써서 키 앞에 `minigame:`를 붙여요.
 - 호출 하나하나가 RPC이고, 호스트가 RPC마다 `console.log`를 남겨요. 그래서 저장은 600ms 디바운스로 모아서 보내고,
   화면을 닫을 때와 `visibilitychange`, `pagehide`에서는 바로 flush해요.
+
+## 플러그인 업데이트 (`//@update-url`)
+- 플러그인 설정 화면을 열 때 `checkPluginUpdate`가 그 URL을 `Range: bytes=0-512`로 받아서
+  `//@version`을 비교해요. 더 높으면 초록 ➕ 버튼이 뜨고, 누르면 파일 전체를 받아 다시 가져와요
+  (`plugins/plugins.svelte.ts:78-139`, `lib/Setting/Pages/PluginSettings.svelte:159-170`).
+- 브라우저에서 직접 fetch하기 때문에 공개 주소여야 하고 CORS가 허용돼야 해요.
+  GitHub Release 첨부 파일은 CORS 헤더가 없어서 안 되고, `raw.githubusercontent.com`은 돼요.
+- 헤더는 `line.split(' ')[1]`로 읽어서 `//@update-url`과 URL 사이 공백은 딱 한 칸이어야 하고, https만 허용돼요 (`plugins.svelte.ts:300-312`).
+- 업데이트하면 코드 해시가 바뀌어서 권한(알림용 `replacer`)을 다시 물어봐요.
 
 ## 아직 실기기에서 확인 못 한 것
 - 버튼을 눌러 화면을 연 직후에 iframe이 키보드 포커스를 받는지

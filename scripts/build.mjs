@@ -8,10 +8,14 @@ const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 const outfile = path.join(root, 'dist/risu-minigame.js');
 const dev = process.argv.includes('--dev');
 
-// //@version은 파일 앞쪽 약 500바이트 안에 있어야 호스트가 읽는다.
+// //@version은 파일 앞쪽 512바이트 안에 있어야 업데이트 확인이 읽는다.
+// //@update-url은 RisuAI가 브라우저에서 직접 fetch하므로 공개·CORS 허용 주소여야 한다.
+// release 브랜치는 Release 워크플로가 정식 태그마다 갱신한다. (호스트가 공백 하나로 split하니 공백은 한 칸만)
+const UPDATE_URL = 'https://raw.githubusercontent.com/Sallos725/risu-minigame/release/risu-minigame.js';
 const banner = [
   '//@name risu_minigame',
   `//@version ${pkg.version}`,
+  `//@update-url ${UPDATE_URL}`,
   '//@display-name 미니게임',
   '//@api 3.0',
 ].join('\n');
